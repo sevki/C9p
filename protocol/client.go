@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"runtime"
 	"sync/atomic"
 )
 
@@ -50,13 +49,7 @@ func NewClient(opts ...ClientOpt) (*Client, error) {
 
 // GetTag gets a tag to be used to identify a message.
 func (c *Client) GetTag() Tag {
-	t := <-c.Tags
-	if false {
-		runtime.SetFinalizer(&t, func(t *Tag) {
-			c.Tags <- *t
-		})
-	}
-	return t
+	return <-c.Tags
 }
 
 // GetFID gets a fid to be used to identify a resource for a 9p client.

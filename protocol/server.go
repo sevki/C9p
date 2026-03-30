@@ -6,6 +6,7 @@ package protocol
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -114,7 +115,8 @@ func (l *Listener) closeListenersLocked() error {
 	return err
 }
 
-// Serve accepts incoming connections on the Listener.
+// Serve accepts incoming connections on the Listener. It blocks until an
+// error occurs and closes the listener before returning.
 func (l *Listener) Serve(ln net.Listener) error {
 	defer ln.Close()
 
@@ -126,7 +128,8 @@ func (l *Listener) Serve(ln net.Listener) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {

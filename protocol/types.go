@@ -4,11 +4,12 @@
 
 package protocol
 
-// A File is defined by a QID. File Servers never see a FID.
+// File is a placeholder for future file-related state. It is identified by a QID on the wire.
 type File struct {
 }
 
-// A service is a closure which returns an error or nil.
+// Service is a function type that accepts a work function and a FID abort channel.
+// It executes the work function and handles FID-related aborts.
 type Service func(func() error, chan FID)
 
 // FileServer maintains file system server state.
