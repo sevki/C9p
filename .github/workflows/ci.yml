@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test (Go reference implementation)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -v -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+  carbon:
+    name: Carbon sans-IO codec
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y python3 wget
+
+      - name: Install Carbon nightly toolchain
+        run: |
+          VERSION=$(python3 - <<'EOF'
+          import urllib.request, json
+          url = "https://api.github.com/repos/carbon-language/carbon-lang/releases"
+          req = urllib.request.Request(url, headers={"User-Agent": "ci"})
+          with urllib.request.urlopen(req) as r:
+              releases = json.load(r)
+          nightly = next(x for x in releases if x["prerelease"])
+          # Tag is e.g. "v0.0.0-0.nightly.2026.03.30"; tarball drops the "v".
+          print(nightly["tag_name"].lstrip("v"))
+          EOF
+          )
+          echo "Installing Carbon toolchain version: $VERSION"
+          TARBALL="carbon_toolchain-${VERSION}.tar.gz"
+          wget -q "https://github.com/carbon-language/carbon-lang/releases/download/v${VERSION}/${TARBALL}"
+          tar -xf "${TARBALL}"
+          echo "${PWD}/carbon_toolchain-${VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Compile Carbon codec
+        run: carbon compile --output=p9.o carbon/p9.carbon
+
+      - name: Link Carbon codec
+        run: carbon link --output=p9 p9.o
+
+      - name: Run smoke test
+        run: ./p9
